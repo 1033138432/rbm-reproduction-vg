@@ -1,0 +1,11 @@
+﻿模型,协议,任务,成功数,总数,成功率
+官方BASE,A_openpi闭环RHC10,ID,69,90,76.70%
+官方BASE,B_RLinf开环50,ID,50,90,55.60%
+官方BASE,B_RLinf开环50,OOD,2,60,3.30%
+SFT_expert_only,A_openpi闭环RHC10,ID,51,90,56.70%
+SFT_expert_only,B_RLinf开环50,ID,25,90,27.80%
+SFT_expert_only,B_RLinf开环50,OOD,2,60,3.30%
+PPO_step5_KL,B_RLinf开环50,ID,53,90,58.90%
+PPO_step5_KL,B_RLinf开环50,OOD,2,60,3.30%
+RECAP_mixed,B_RLinf开环50,ID,53,90,58.90%
+RECAP_mixed,B_RLinf开环50,OOD,4,60,6.70%

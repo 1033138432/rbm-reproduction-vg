@@ -1,0 +1,16 @@
+# 统一换行与文本处理，防止 Windows 上改文件把 LF 变成 CRLF
+* text=auto eol=lf
+
+*.sh    text eol=lf
+*.patch text eol=lf
+*.py    text eol=lf
+*.yaml  text eol=lf
+*.md    text eol=lf
+
+# 二进制文件不做换行转换
+*.png   binary
+*.jpg   binary
+*.gif   binary
+*.mp4   binary
+*.pt    binary
+*.safetensors binary

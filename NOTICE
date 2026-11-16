@@ -1,0 +1,22 @@
+This repository contains a reproduction / adaptation built on top of the
+following open-source projects. Their code is included here unmodified except
+where noted in CUSTOM_CHANGES_REPRODUCTION.md.
+
+  RLinf
+    https://github.com/RLinf/RLinf
+    Copyright The RLinf Authors
+    Licensed under the Apache License, Version 2.0
+
+  OpenPI (pi0 / pi0.5)
+    https://github.com/Physical-Intelligence/openpi
+    Licensed under the Apache License, Version 2.0
+
+  RoboBenchMart / ManiSkill
+    Licensed under the Apache License, Version 2.0
+
+Modifications, reproduction experiments and documentation in this repository
+were produced by the repository owner in 2026. See:
+  - CUSTOM_CHANGES_REPRODUCTION.md   (index of all changes)
+  - README.md                        (what was reproduced and what was not)
+
+All upstream copyright, patent, trademark and attribution notices are retained.

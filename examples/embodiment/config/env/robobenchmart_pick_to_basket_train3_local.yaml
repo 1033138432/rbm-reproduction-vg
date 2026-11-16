@@ -1,0 +1,48 @@
+env_type: robobenchmart
+
+project_path: /root/gpufree-data/openpi/.cache/rbm/repo
+total_num_envs: null
+
+wrap_obs_mode: rbm
+auto_reset: True
+ignore_terminations: False
+use_rel_reward: False
+reward_mode: only_success
+seed: 0
+episode_seed_start: null
+episode_seed_lists: null
+group_size: 1
+use_fixed_reset_state_ids: False
+reconfigure_on_reset: True
+robot_init_pose_start_seed: null
+
+max_steps_per_rollout_epoch: 40
+max_episode_steps: 600
+
+video_cfg:
+  save_video: False
+  info_on_video: True
+  video_base_dir: ${runner.logger.log_path}/video/train
+
+enable_offload: False
+action_trace_dir: null
+
+init_params:
+  id:
+    - PickToBasketContFantaEnv
+    - PickToBasketContNiveaEnv
+    - PickToBasketContStarsEnv
+  config_dir_path: /root/gpufree-data/openpi/.cache/rbm/demo_envs/pick_to_basket
+  init_state_dir: /root/gpufree-data/openpi/.cache/rbm/eval_states/fanta
+  num_envs: null
+  robot_uids: ds_fetch_basket
+  control_mode: pd_joint_pos
+  obs_mode: rgb
+  sim_backend: cpu
+  render_mode: rgb_array
+  enable_shadow: true
+  parallel_in_single_scene: false
+  viewer_camera_configs:
+    shader_pack: default
+  human_render_camera_configs:
+    shader_pack: default
