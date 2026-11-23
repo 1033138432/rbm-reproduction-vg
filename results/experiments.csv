@@ -1,0 +1,19 @@
+实验,任务,数据来源,数据量,起点,方法,步数,初始姿态,成功率,备注
+v1,pick_to_basket,官方演示,248条,pi05_base,LoRA 10k,10000,环境默认,0/5,
+v2,pick_to_basket,官方演示,248条,pi05_base,LoRA 30k,30000,环境默认,0/10,
+v3,pick_to_basket,混合(官方+自采),325条,pi05_base,LoRA 35k,35000,环境默认,0/10,含无效数据
+v4,pick_to_basket,自采(无效),77条,pi05_base,LoRA 10k,10000,环境默认,0/10,数据验证0/3
+v5,pick_to_basket,自采(无效),77条,pi05_base,LoRA+zscore 10k,10000,环境默认,1/10,噪声
+v6,pick_to_basket,自采(无效),77条,pi05_base,LoRA+zscore 20k,20000,环境默认,0/10,
+v7,pick_to_basket,官方演示,248条,pi05_base,LoRA+zscore 10k,10000,-,0/10,
+v8,pick_to_basket,官方演示,248条,pi05_base,LoRA+官方统计,10000,演示姿态,0/10,
+v9,pick_to_basket,官方演示,248条,pi05_base,LoRA+官方统计续训,19000,演示姿态,0/10,
+v10,pick_to_basket,官方演示,248条,官方权重,LoRA+官方统计,10000,演示姿态,9/20,唯一非零
+v11,pick_from_floor,自采(有效),60条,官方权重,LoRA+官方统计,3000,环境默认,0/10,
+v12,pick_from_floor,自采(有效),217条,官方权重,LoRA+官方统计,8000,环境默认,0/10,
+v12b,pick_from_floor,自采(有效),217条,官方权重,LoRA+RHC-1,8000,环境默认,0/10,
+baseline-1,pick_to_basket,无,0,官方权重,不训练,-,演示姿态,17/20,
+baseline-2,pick_to_basket,无,0,官方权重,不训练,-,环境默认,0/10,
+baseline-3,pick_to_basket,无,0,官方权重,不训练,-,留出场景+演示姿态,7/10,
+baseline-4,pick_from_floor,无,0,官方权重,不训练,-,演示姿态,6/10,
+baseline-5,pick_from_floor,无,0,官方权重,不训练,-,环境默认,0/10,

@@ -1,9 +1,8 @@
 # 本次复现的改动索引
 
 本文列出在**上游完整源码之上**做的修改，方便代码审查与面试讲解快速定位。
-上游原有的 `CUSTOM_CHANGES.md` 保留不动。
 
-> 基线：上游发布版本（646 个 .py 全部保留）
+> 基线：上游发布版本（641 个 .py 全部保留）
 > 本文档对应的改动已直接体现在源码中，无需打补丁
 
 ---
@@ -144,7 +143,7 @@ freeze_filter = nnx.All(nnx.Param, nnx.Not(nnx_utils.PathRegex(".*llm.*_1.*")))
 ```text
 ref_logprobs = SFT_reference(forward_inputs)     # 冻结初始 SFT 作为 reference
 loss += kl_beta * KL(current_logprobs, ref_logprobs)
-自适应 β：target 0.01，超过 ÷1.5，低于 ×1.5，clamp [1e-4, 10]
+自适应 β：target 0.01，高于 2×target 时 ×1.5，低于 0.5×target 时 ÷1.5，clamp [1e-4, 10]
 critic warmup 12
 actor_update_min_successes = 2
 SFT rehearsal（混入 SFT loss 防止遗忘）
@@ -179,10 +178,10 @@ SFT rehearsal（混入 SFT loss 防止遗忘）
 
 | 文件 | 内容 |
 |---|---|
-| `docs/repro_01_results.md` | 12 轮训练全表 + 4 模型 × 2 协议评测 + 工程问题 14 项 |
+| `docs/repro_00_lora_prelude.md` | 复现前的 12 轮 LoRA 探索（含初始姿态契约的发现）|
+| `docs/repro_01_results.md` | 4 模型 × 2 协议评测 + OOD + 结果解读 |
 | `docs/repro_02_pitfalls.md` | 27 个踩坑：现象 → 根因 → 解法 |
 | `docs/repro_03_runbook.md` | 从零复现的完整步骤（环境 3 小时 → 数据 → 训练 → 评测）|
 | `docs/repro_04_deviations.md` | 未能复现的部分、代理指标、不可比之处 |
-| `results/experiments.csv` | 12 轮训练原始记录 |
-| `results/reproduction-comparison.csv` | 与原项目数字逐项对照 |
-| `media/*.mp4` | 12 段评测录像 |
+| `results/experiments.csv` | 探索期 12 轮训练的原始记录 |
+| `results/reproduction-comparison.csv` | 本次 4 模型 × 2 协议的实测数字（原项目数字不在这个 CSV 里，见 `repro_04` §1.2）|

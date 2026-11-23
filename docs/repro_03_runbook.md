@@ -3,7 +3,11 @@
 > 目标读者：未来的你，或任何拿到一台 46 GB 单卡机器、想从零重做这套流程的人。
 > 本文所有命令和改动都在 L40 46 GB + 128 核 + 197 GB 数据盘上实测通过。
 >
-> 阅读顺序：先看 §0 的硬件门槛，再按 §1→§11 顺序执行。§12 是每步的验收标准，§13 是踩过的所有坑。
+> **路径说明**：文中的 `/root/gpufree-data`、`/root/autodl-tmp`、`/root/gpufree-share` 是原实验机器的
+> 路径，按实跑记录原样保留。换机器时不用改脚本，按 README 的「路径配置」用环境变量覆盖即可；
+> 只有 3 处 YAML 必须手改（README 里有表）。
+>
+> 阅读顺序：先看 §0 的硬件门槛，再按 §1→§11 顺序执行。§12 是每步的验收标准，§13 是坑清单索引。
 
 ---
 
@@ -78,10 +82,14 @@ uv pip install -e .
 cd $RBM
 uv venv .dsynth-env --python 3.10
 source .dsynth-env/bin/activate
-uv pip install torch==2.14.1 mani_skill==3.0.1 sapien==3.0.3 \
-  scene-synthesizer==1.15.0 trimesh==4.5.3 mujoco==3.17.0 \
+uv pip install torch mani_skill==3.0.1 sapien==3.0.3 \
+  scene-synthesizer==1.15.0 trimesh==4.5.3 mujoco \
   h5py zarr gymnasium opencv-python imageio
 ```
+
+> **版本号说明**：`torch` 与 `mujoco` 未锁死小版本，请按本机 CUDA 版本安装后用
+> `pip freeze > requirements-dsynth.txt` 固定环境。注意 `.dsynth-env`（Python 3.10）
+> 与 §2.3 的 RLinf 训练环境（`.venv_rlinf`，Python 3.11）为两套独立环境，切勿混用依赖版本。
 
 ### 2.3 RLinf（Python 3.11）
 
@@ -128,7 +136,7 @@ uv pip install --python .venv_rlinf/bin/python "hydra-core==1.3.2"
 
 ```bash
 uv pip install --python .venv_rlinf/bin/python "pyarrow==16.1.0" "numpy==1.26.4" \
-  "scene-synthesizer==1.15.0" "trimesh==4.5.3" "mujoco==3.17.0" \
+  "scene-synthesizer==1.15.0" "trimesh==4.5.3" "mujoco" \
   "mani_skill==3.0.1" "sapien==3.0.3"
 ```
 
@@ -197,7 +205,7 @@ stars  27.45 GB
 
 文件：`robobenchmart-openpi-rlinf-ppo-main/sft/convert_pick_to_basket_h5_to_lerobot.py`
 
-#### 补丁 A：批量读取（提速 20 倍，**不打这个转换要 10 小时**）
+#### 补丁 A：批量读取（提速 31 倍，**不打这个补丁全量转换要 12 小时**）
 
 **位置**：`convert()` 函数内，`frame_data = {...}` 之前
 
@@ -836,28 +844,14 @@ MAX_STEPS × GLOBAL_BATCH_SIZE 必须是 cycle 的整数倍
 
 ---
 
-## 13. 踩过的所有坑（按出现顺序）
+## 13. 踩过的所有坑
 
-| # | 现象 | 根因 | 修复 |
-|---|---|---|---|
-| 1 | `不支持的 SSL 后端 'openssl'` | `~/.gitconfig` 有问题 | 独立 `GIT_CONFIG_GLOBAL` |
-| 2 | `version_base='1.1' is not supported` | hydra 1.4 | hydra 降 1.3.2 |
-| 3 | `pyarrow requires NumPy 2.0` | pyarrow 26 | 降 16.1.0 + numpy 1.26.4 |
-| 4 | `No module named 'scene_synthesizer'` | 缺 dsynth 依赖 | 按原环境版本补装 |
-| 5 | 转换 48 秒/条 | 逐帧读 h5 | 批量读 → 2.15 秒/条 |
-| 6 | `FileExistsError: .../meta` | mkdir 缺 exists_ok | 加 `exist_ok=True` |
-| 7 | info.json 报 744 而非 496 | 计数重复加偏移 | `completed_episodes` 已含偏移 |
-| 8 | 官方模型评测 0% | 环境 reset 是 pose B | 注入 pose A |
-| 9 | `Normalization stats not found` | assets 相对路径 + Ray CWD | 绝对路径 + 两处放 norm_stats |
-| 10 | PPO rollout 恒 0/12 | **注入后没刷新观测** | `extracted_obs = self._wrap_obs(get_obs())` |
-| 11 | KL/SFT rehearsal 没生效 | epoch 太少 + 成功数门控 | 跑 ≥5 epoch |
-| 12 | 断点 `failed finding central directory` | 磁盘满时保存被截断 | save_interval=5 + 监控磁盘 |
-| 13 | 系统盘写满崩溃 | HF 缓存写 `~/.cache` | `HF_DATASETS_CACHE`/`TMPDIR` 指向 JuiceFS |
-| 14 | `total_num_envs // stage_num = 0` | OOD 只有 2 任务 | `rollout.pipeline_stage_num=2` |
-| 15 | `Missing key: value_head/noise_head` | 配置跨阶段复用 | RECAP 用 `HEADLESS=1` |
-| 16 | `Unexpected key: value_head` | 反向问题 | PPO 断点不要 HEADLESS |
-| 17 | `Missing key: embed_tokens.weight` | 转换器不存共享权重 | 从 RLinf 断点拷这一个张量 |
-| 18 | `pickle.UnpicklingError` | safetensors 当成 .pt | 转成真正的 `torch.save` |
+完整清单见 [`repro_02_pitfalls.md`](repro_02_pitfalls.md)：27 个坑，按类别分组，每条都是
+「现象 → 根因 → 解法」。这里不再维护第二份表格，避免两边编号对不上。
+
+照本文顺序执行时最容易撞上的几个已经写进对应步骤：§2.3 的坑 ①–⑤（Python 版本、uv 建 venv、
+git ssl、hydra、pyarrow/numpy）、§3.2 的补丁 A/B（批量读、append 与 info 计数）、
+§6.1.1（初始姿态为什么必须注入）。
 
 ---
 

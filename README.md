@@ -16,26 +16,29 @@
 1. **定位并修复上游 bug**：`reset()` 返回观测之后才注入初始姿态，导致策略看到错误的第一帧。
    修复前 PPO rollout **0/12** 成功，修复后 **4/12**。
    （`rlinf/envs/robobenchmart/robobenchmart_env.py`）
-2. **实现真 SFT-reference KL-PPO**：上游 embodied PPO 只有 PPO clip（约束 current vs rollout-old），
-   缺少对初始 SFT 策略的约束。补上冻结 reference、CPU 权重换入换出、自适应 β、
-   critic warmup、成功数门控与 SFT rehearsal。（`rlinf/workers/actor/fsdp_actor_worker.py`、
-   `rlinf/utils/embodied_training_safety.py`）
-3. **重写 PickToBasket 奖励**：事件式 shaped reward + episode 内「只奖励第一次」状态缓存，
-   压制「抬起来就一直举着」的 reward hacking。
-4. **RECAP-lite**：用 episode 成败把自主 rollout 分成正/负样本，通过
-   `Advantage: positive/negative` 条件化 CFG flow-matching 继续训练；
-   采样端改为 episode 均衡 + 确定性配额。
-5. **数据管线**：H5 → LeRobot v2.1，批量读 + 增量追加，
-   **140 ms/帧 → 4.4 ms/帧（31×）**，使 26 GB 数据可以分三次下载、逐批转换。
-6. **两套评测协议**：A（openpi 服务 + RHC-10 闭环）与 B（RLinf 开环 50 步），同种子逐集对照。
+2. **验证并修好 KL-PPO 的约束**：原项目在 RLinf 的 embodied PPO 上补了 SFT-reference KL
+   （冻结 reference、CPU 权重换入换出、自适应 β、critic warmup、成功数门控与 SFT rehearsal）。
+   本次复现排查出 epoch 过少时 warmup 与门控叠加、KL 与 rehearsal 从未触发（`repro_02` #18），
+   调整到 5 epoch 后 `ref_kl_abs`（0.0012–0.0020）与 `sft_loss` 正常出现，确认机制真的生效。
+   （`rlinf/workers/actor/fsdp_actor_worker.py`、`rlinf/utils/embodied_training_safety.py`）
+3. **梳理奖励与 reward hacking**：原项目重写了 PickToBasket 的事件式 shaped reward 与
+   episode 内「只奖励第一次」状态缓存；本次复现分析了它对「抬起来就一直举着」的抑制机制。
+4. **跑通 RECAP-lite 数据闭环**：原项目用 episode 成败把自主 rollout 分成正/负样本，通过
+   `Advantage: positive/negative` 条件化 CFG flow-matching 继续训练，采样端为 episode 均衡 +
+   确定性配额；本项目采集 90 条 ID 自主 rollout、完成 150 步混合训练并做了评测。
+5. **改造数据管线**：H5 → LeRobot v2.1，把逐帧索引改成整条轨迹批量读，并加 `--append` 增量追加，
+   **140 ms/帧 → 4.4 ms/帧（31×）**；三个各 27 GB 的 h5 因此可以逐个下载、转换、删除，
+   最终得到 26 GB 的 LeRobot 数据集。
+6. **搭起两套评测协议**：A（openpi 服务 + RHC-10 闭环）与 B（RLinf 原有的开环 `only_eval`，
+   50 步），同种子逐集对照。
 
 改动集中在 35 个文件（见文末「代码地图」）。
 
 ## 结果
 
-协议 B（RLinf 开环 50 步，3 个 ID 任务 × 30 集）：
+两套协议结果（ID：3 个任务 × 30 集 = 90 集）：
 
-| 模型 | ID 成功 | 协议 A | 原项目文档 |
+| 模型 | 协议 B（开环 50 步） | 协议 A（闭环 RHC-10） | 原项目文档 |
 |---|---:|---:|---:|
 | 官方 BASE | 55.6%（50/90） | **76.7%**（69/90） | 47.8% |
 | 本次 SFT | 27.8%（25/90） | 56.7%（51/90） | 74.4%（67/90） |
@@ -44,7 +47,7 @@
 
 OOD（2 个未见商品，60 集）：BASE 2/60、SFT 2/60、PPO 2/60、RECAP 4/60。
 
-**同一切始条件下的相对排序**：PPO ≈ RECAP ≈ BASE > SFT。
+**同一初始条件下的相对排序**：PPO ≈ RECAP ≈ BASE > SFT。
 但**绝对值与原项目不可比**——原项目用环境默认初始姿态，本次从演示导出姿态注入。
 
 ## 没做成的部分（负结果）
@@ -52,7 +55,8 @@ OOD（2 个未见商品，60 集）：BASE 2/60、SFT 2/60、PPO 2/60、RECAP 4/
 - **LoRA 微调 12 轮里 11 轮闭环 0%**：数据 60→217 条、步数 3k→8k、裁剪、RHC-1 全部无效；
   离线 MAE 0.05、真值回放 3/3 都正常，闭环仍为 0，结论是行为克隆的曝光偏差。
   唯一非零的 v10 是从**官方权重**继续训得到 45%（9/20），而同协议下官方基线是 85%——
-  属于退化，不是提升。这也是后来改用 **expert-only 全参微调（冻 VLM，仅训 427.9M）** 的原因。
+  属于退化，不是提升。这也是后来改用 **expert-only 微调（冻 VLM，仅训 427.9M）** 的原因。
+  12 轮全表见 [`docs/repro_00_lora_prelude.md`](docs/repro_00_lora_prelude.md)。
 - **PPO 提升有限**：上游项目 59/90 → 60/90（+1）；本次复现 50/90 → 53/90（+3）。
   两者都小于任务间的波动幅度，critic 解释方差≈0，不足以支撑「PPO 有效」的结论。
 - **RECAP mixed 没有超过 SFT/BASE**：上游 quota 重采样后 step1→step5 权重 relative L2 仅
@@ -142,7 +146,7 @@ chmod +x scripts_local/*.sh run_stage2_probe.sh
 
 ## 代码地图
 
-上游 RLinf 的 610 个 `.py` 保持原样，我的改动集中在 35 个文件：
+本仓库共 641 个 `.py`（上游 RLinf 原有文件全部保留），我的改动集中在 35 个文件：
 
 ```text
 rlinf/envs/robobenchmart/            环境 wrapper、proxy 任务、观测刷新修复、奖励
@@ -153,12 +157,12 @@ rlinf/workers/sft/fsdp_cfg_worker.py CFG-SFT 训练循环与配额采样
 rlinf/data/datasets/recap/           advantage 对齐与混合数据集
 rlinf/utils/embodied_training_safety.py  训练安全纯函数（有单测）
 sft/                                 H5→LeRobot 转换、OpenPI 补丁
-docs/repro_*.md                      复现记录（结果 / 27 个坑 / 手册 / 偏差分析）
+docs/repro_*.md                      复现记录（LoRA 前置探索 / 复现结果 / 27 个坑 / 手册 / 偏差分析）
 ```
 
 ## 局限
 
-- **绝对值不可比**：初始姿态注入 vs 环境默认姿态，这是两套初始条件（详见 `docs/repro_04_deviations.md`）。
+- **绝对值不可比**：初始姿态注入 vs 环境默认姿态，这是两套初始条件（详见 [`docs/repro_04_deviations.md`](docs/repro_04_deviations.md)）。
 - **RECAP-lite ≠ RECAP**：用 episode 二值成败标签，没有 value 模型、没有专家 correction。
 - **单种子**：每个配置只跑一次，没有置信区间。
 - **未做**：JAX/PyTorch 动作轨迹逐帧对齐、proxy-mix 消融、断点续训验证。
@@ -167,7 +171,7 @@ docs/repro_*.md                      复现记录（结果 / 27 个坑 / 手册 
 
 - `LICENSE`：Apache 2.0（上游原文）
 - `NOTICE`：衍生关系与归属
-- 610 个上游 `.py` 的版权头全部保留；`pyproject.toml` 中的包名与作者元数据（`rlinf` / `RLinf Contributors`）
+- 641 个 `.py` 的版权头全部保留；`pyproject.toml` 中的包名与作者元数据（`rlinf` / `RLinf Contributors`）
   描述的是上游包本身，未做修改。
 
 ## 硬件
